@@ -72,6 +72,14 @@ export class Part extends Entity {
     this.touch();
   }
 
+  updateName(name: string): void {
+    if (!name || name.trim().length === 0) {
+      throw DomainException.of('Part name is required');
+    }
+    this._name = name.trim();
+    this.touch();
+  }
+
   updatePrice(newPrice: number): void {
     if (newPrice < 0) {
       throw DomainException.of('Unit price cannot be negative');

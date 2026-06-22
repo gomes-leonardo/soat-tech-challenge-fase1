@@ -7,6 +7,9 @@ import { AuthModule } from '@interfaces/http/auth/auth.module';
 import { ClientModule } from '@interfaces/http/client/client.module';
 import { ServiceOrderModule } from '@interfaces/http/service-order/service-order.module';
 import { PartModule } from '@interfaces/http/part/part.module';
+import { ServiceModule } from '@interfaces/http/service/service.module';
+import { VehicleModule } from '@interfaces/http/vehicle/vehicle.module';
+import { BudgetModule } from '@interfaces/http/budget/budget.module';
 import { ConsultModule } from '@interfaces/http/consult/consult.module';
 import { DomainExceptionFilter } from '@interfaces/http/filters/domain-exception.filter';
 
@@ -18,6 +21,9 @@ import { DomainExceptionFilter } from '@interfaces/http/filters/domain-exception
     ClientModule,
     ServiceOrderModule,
     PartModule,
+    ServiceModule,
+    VehicleModule,
+    BudgetModule,
     ConsultModule,
   ],
   providers: [

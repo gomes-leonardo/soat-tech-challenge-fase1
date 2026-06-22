@@ -10,17 +10,6 @@ interface BudgetLineProps {
   frozenUnitPrice: number; // price frozen at budget creation time
 }
 
-/**
- * BudgetLine Value Object — represents a single line item in a budget.
- *
- * // TODO(you): implement the BudgetLine with these rules:
- * - `lineTotal` must equal `quantity * frozenUnitPrice`
- * - `quantity` must be > 0
- * - `frozenUnitPrice` must be >= 0
- * - `description` must not be empty
- * - The price is "frozen" — it's captured at budget creation time
- *   and does NOT change even if the part/service price changes later
- */
 export class BudgetLine extends ValueObject<BudgetLineProps> {
   private constructor(props: BudgetLineProps) {
     super(props);
@@ -46,19 +35,10 @@ export class BudgetLine extends ValueObject<BudgetLineProps> {
     return this.props.frozenUnitPrice;
   }
 
-  /**
-   * // TODO(you): total must equal quantity * frozenUnitPrice
-   */
   get lineTotal(): number {
-    throw new Error(
-      'Not implemented: return quantity * frozenUnitPrice. ' +
-        'This seems trivial but it establishes the price-freezing pattern.',
-    );
+    return this.quantity * this.frozenUnitPrice;
   }
 
-  /**
-   * // TODO(you): validate all invariants and return a new BudgetLine
-   */
   static create(
     type: BudgetLineType,
     referenceId: string,
@@ -66,9 +46,15 @@ export class BudgetLine extends ValueObject<BudgetLineProps> {
     quantity: number,
     frozenUnitPrice: number,
   ): BudgetLine {
-    throw new Error(
-      'Not implemented: validate quantity > 0, frozenUnitPrice >= 0, description not empty. ' +
-        'Return new BudgetLine with frozen price snapshot.',
-    );
+    if (quantity <= 0) {
+      throw new Error('Quantity must be a positive number');
+    }
+    if (frozenUnitPrice < 0) {
+      throw new Error('Frozen unit price must be a non-negative number');
+    }
+    if (!description.trim()) {
+      throw new Error('Description is required');
+    }
+    return new BudgetLine({ type, referenceId, description, quantity, frozenUnitPrice });
   }
 }

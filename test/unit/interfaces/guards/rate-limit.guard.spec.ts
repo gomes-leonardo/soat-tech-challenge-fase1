@@ -15,10 +15,7 @@
  * - Window reset after time expires
  */
 import { ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
-import {
-  RateLimitGuard,
-  InMemoryRateLimitStore,
-} from '@interfaces/http/guards/rate-limit.guard';
+import { RateLimitGuard, InMemoryRateLimitStore } from '@interfaces/http/guards/rate-limit.guard';
 
 describe('RateLimitGuard', () => {
   const MAX_REQUESTS = 3;
@@ -164,10 +161,7 @@ describe('RateLimitGuard', () => {
         // Expected
       }
 
-      expect(response.setHeader).toHaveBeenCalledWith(
-        'Retry-After',
-        expect.any(String),
-      );
+      expect(response.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
     });
 
     it('should allow requests again after window resets', async () => {

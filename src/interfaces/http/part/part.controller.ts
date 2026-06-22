@@ -2,7 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Patch,
+  Delete,
   Body,
   Param,
   HttpCode,
@@ -14,6 +16,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { RegisterPartUseCase } from '@application/part/register-part.use-case';
 import { AdjustStockUseCase } from '@application/part/adjust-stock.use-case';
 import { RegisterPartDto } from '@application/part/dtos/register-part.dto';
+import { UpdatePartDto } from '@application/part/dtos/update-part.dto';
 import { PartResponseDto } from '@application/part/dtos/part-response.dto';
 import { PartRepository } from '@domain/part/part-repository.port';
 import { JwtAuthGuard } from '@infrastructure/auth/jwt-auth.guard';
@@ -54,6 +57,24 @@ export class PartController {
     return PartResponseDto.fromDomain(part);
   }
 
+  @Put(':id')
+  @ApiOperation({ summary: 'Atualizar peça (nome, preço)' })
+  @ApiResponse({ status: 200, type: PartResponseDto })
+  async update(@Param('id') id: string, @Body() dto: UpdatePartDto): Promise<PartResponseDto> {
+    const part = await this.partRepository.findById(id);
+    if (!part) throw new NotFoundException('Part not found');
+
+    if (dto.name !== undefined) {
+      part.updateName(dto.name);
+    }
+    if (dto.unitPrice !== undefined) {
+      part.updatePrice(dto.unitPrice);
+    }
+
+    await this.partRepository.save(part);
+    return PartResponseDto.fromDomain(part);
+  }
+
   @Patch(':id/stock')
   @ApiOperation({ summary: 'Ajustar estoque (positivo = entrada, negativo = saída)' })
   @ApiResponse({ status: 200, type: PartResponseDto })
@@ -62,5 +83,15 @@ export class PartController {
     @Body('quantity') quantity: number,
   ): Promise<PartResponseDto> {
     return this.adjustStock.execute({ partId: id, quantity });
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remover peça' })
+  @ApiResponse({ status: 204 })
+  async remove(@Param('id') id: string): Promise<void> {
+    const part = await this.partRepository.findById(id);
+    if (!part) throw new NotFoundException('Part not found');
+    await this.partRepository.delete(id);
   }
 }

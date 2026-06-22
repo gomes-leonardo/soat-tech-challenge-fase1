@@ -5,4 +5,5 @@ export abstract class PartRepository {
   abstract findById(id: string): Promise<Part | null>;
   abstract findBySku(sku: string): Promise<Part | null>;
   abstract findAll(): Promise<Part[]>;
+  abstract delete(id: string): Promise<void>;
 }

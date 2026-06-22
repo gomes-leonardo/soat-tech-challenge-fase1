@@ -1,4 +1,4 @@
-import { Entity } from '@domain/shared';
+import { DomainException, Entity } from '@domain/shared';
 import { Plate } from './plate.vo';
 
 export interface CreateVehicleProps {
@@ -9,17 +9,6 @@ export interface CreateVehicleProps {
   ownerClientId: string;
 }
 
-/**
- * Vehicle Entity — represents a vehicle registered in the system.
- *
- * // TODO(you): implement the constructor with the following invariants:
- * - A vehicle MUST belong to a client (ownerClientId is required)
- * - Plate must be validated via the Plate value object
- * - Brand and model are required strings
- * - Year must be a reasonable value (e.g., >= 1900 and <= current year + 1)
- *
- * Mirror the Client entity reference implementation for guidance.
- */
 export class Vehicle extends Entity {
   private _plate!: Plate;
   private _brand!: string;
@@ -30,13 +19,30 @@ export class Vehicle extends Entity {
   constructor(props: CreateVehicleProps, id?: string) {
     super(id);
 
-    // TODO(you): a vehicle must belong to a client; enforce it.
-    // Validate all required fields, create the Plate VO, and assign properties.
-    // Throw DomainException on invalid data.
-    throw new Error(
-      'Not implemented: validate props, create Plate VO, assign all properties. ' +
-        'A vehicle must belong to a client — ownerClientId is required.',
-    );
+    if (props.ownerClientId === null || props.ownerClientId.trim() === '') {
+      throw DomainException.of('Owner client ID is required');
+    }
+    if (!props.plate) {
+      throw DomainException.of('Plate is required');
+    }
+
+    if (props.year < 1900 || props.year > new Date().getFullYear() + 1) {
+      throw DomainException.of('Year must be between 1900 and next year');
+    }
+    if (props.brand === null || props.brand.trim() === '') {
+      throw DomainException.of('Brand is required');
+    }
+    if (props.model === null || props.model.trim() === '') {
+      throw DomainException.of('Model is required');
+    }
+
+    Plate.create(props.plate).getValue();
+
+    this._ownerClientId = props.ownerClientId;
+    this._plate = Plate.create(props.plate).getValue();
+    this._brand = props.brand;
+    this._model = props.model;
+    this._year = props.year;
   }
 
   get plate(): Plate {
@@ -57,5 +63,47 @@ export class Vehicle extends Entity {
 
   get ownerClientId(): string {
     return this._ownerClientId;
+  }
+
+  updateInfo(props: { brand?: string; model?: string; year?: number }): void {
+    if (props.brand !== undefined) {
+      if (!props.brand || props.brand.trim() === '') {
+        throw DomainException.of('Brand is required');
+      }
+      this._brand = props.brand.trim();
+    }
+    if (props.model !== undefined) {
+      if (!props.model || props.model.trim() === '') {
+        throw DomainException.of('Model is required');
+      }
+      this._model = props.model.trim();
+    }
+    if (props.year !== undefined) {
+      if (props.year < 1900 || props.year > new Date().getFullYear() + 1) {
+        throw DomainException.of('Year must be between 1900 and next year');
+      }
+      this._year = props.year;
+    }
+    this.touch();
+  }
+
+  static reconstitute(
+    id: string,
+    plate: string,
+    brand: string,
+    model: string,
+    year: number,
+    ownerClientId: string,
+  ): Vehicle {
+    const vehicle = Object.create(Vehicle.prototype) as Vehicle;
+    Object.defineProperty(vehicle, 'id', { value: id, writable: false });
+    Object.defineProperty(vehicle, 'createdAt', { value: new Date(), writable: false });
+    vehicle.updatedAt = new Date();
+    vehicle._plate = Plate.create(plate).getValue();
+    vehicle._brand = brand;
+    vehicle._model = model;
+    vehicle._year = year;
+    vehicle._ownerClientId = ownerClientId;
+    return vehicle;
   }
 }

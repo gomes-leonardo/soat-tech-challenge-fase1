@@ -7,4 +7,5 @@ export abstract class ServiceOrderRepository {
   abstract findByClientId(clientId: string): Promise<ServiceOrder[]>;
   abstract findByStatus(status: ServiceOrderStatus): Promise<ServiceOrder[]>;
   abstract findAll(): Promise<ServiceOrder[]>;
+  abstract delete(id: string): Promise<void>;
 }

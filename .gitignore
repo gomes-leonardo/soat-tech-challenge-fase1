@@ -9,6 +9,7 @@ dist/
 
 # Coverage
 coverage/
+coverage-check/
 
 # IDE
 .idea/

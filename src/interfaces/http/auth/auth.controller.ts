@@ -26,7 +26,7 @@ class LoginDto {
 }
 
 class RegisterAdminDto {
-  @ApiProperty({ example: 'João Admin', description: 'Nome do administrador' })
+  @ApiProperty({ example: 'Vinicius Admin', description: 'Nome do administrador' })
   @IsString()
   @IsNotEmpty()
   name!: string;
@@ -64,7 +64,25 @@ export class AuthController {
   constructor(
     private readonly jwtService: JwtService,
     private readonly adminRepository: AdminRepository,
-  ) {}
+  ) {
+    this.seedDefaultAdmin();
+  }
+
+  /**
+   * Cria o admin padrão se não existir (projeto acadêmico).
+   * Email: admin@oficina.com | Senha: admin123
+   */
+  private async seedDefaultAdmin(): Promise<void> {
+    const exists = await this.adminRepository.existsByEmail('admin@oficina.com');
+    if (!exists) {
+      const admin = await Admin.create({
+        name: 'Admin Padrão',
+        email: 'admin@oficina.com',
+        password: 'admin123',
+      });
+      await this.adminRepository.save(admin);
+    }
+  }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)

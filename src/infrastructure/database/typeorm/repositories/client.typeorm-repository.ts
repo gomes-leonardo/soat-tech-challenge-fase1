@@ -41,6 +41,10 @@ export class ClientTypeOrmRepository extends ClientRepository {
     return count > 0;
   }
 
+  async delete(id: string): Promise<void> {
+    await this.ormRepo.delete(id);
+  }
+
   private toOrmEntity(client: Client): ClientOrmEntity {
     const orm = new ClientOrmEntity();
     orm.id = client.id;

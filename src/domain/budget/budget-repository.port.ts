@@ -5,4 +5,5 @@ export abstract class BudgetRepository {
   abstract findById(id: string): Promise<Budget | null>;
   abstract findByServiceOrderId(serviceOrderId: string): Promise<Budget[]>;
   abstract findLatestByServiceOrderId(serviceOrderId: string): Promise<Budget | null>;
+  abstract delete(id: string): Promise<void>;
 }

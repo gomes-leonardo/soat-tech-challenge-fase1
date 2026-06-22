@@ -7,4 +7,5 @@ export abstract class VehicleRepository {
   abstract findByOwnerClientId(clientId: string): Promise<Vehicle[]>;
   abstract findAll(): Promise<Vehicle[]>;
   abstract existsByPlate(plate: string): Promise<boolean>;
+  abstract delete(id: string): Promise<void>;
 }

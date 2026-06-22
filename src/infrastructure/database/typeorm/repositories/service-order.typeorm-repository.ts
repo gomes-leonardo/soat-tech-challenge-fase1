@@ -42,6 +42,10 @@ export class ServiceOrderTypeOrmRepository extends ServiceOrderRepository {
     return orms.map((orm) => this.toDomainEntity(orm));
   }
 
+  async delete(id: string): Promise<void> {
+    await this.ormRepo.delete(id);
+  }
+
   private toOrmEntity(so: ServiceOrder): ServiceOrderOrmEntity {
     const orm = new ServiceOrderOrmEntity();
     orm.id = so.id;

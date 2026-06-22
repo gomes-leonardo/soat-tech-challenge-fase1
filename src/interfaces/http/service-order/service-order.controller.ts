@@ -2,7 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -21,10 +23,12 @@ import {
 import { CreateServiceOrderUseCase } from '@application/service-order/create-service-order.use-case';
 import { ChangeServiceOrderStatusUseCase } from '@application/service-order/change-service-order-status.use-case';
 import { FindServiceOrderUseCase } from '@application/service-order/find-service-order.use-case';
+import { AverageExecutionTimeUseCase } from '@application/service-order/average-execution-time.use-case';
 import { CreateServiceOrderDto } from '@application/service-order/dtos/create-service-order.dto';
 import { ChangeStatusDto } from '@application/service-order/dtos/change-status.dto';
 import { ServiceOrderResponseDto } from '@application/service-order/dtos/service-order-response.dto';
 import { ServiceOrderStatus } from '@domain/service-order/service-order-status.enum';
+import { ServiceOrderRepository } from '@domain/service-order/service-order-repository.port';
 import { JwtAuthGuard } from '@infrastructure/auth/jwt-auth.guard';
 
 @ApiTags('service-orders')
@@ -36,6 +40,8 @@ export class ServiceOrderController {
     private readonly createServiceOrder: CreateServiceOrderUseCase,
     private readonly changeStatus: ChangeServiceOrderStatusUseCase,
     private readonly findServiceOrder: FindServiceOrderUseCase,
+    private readonly averageExecutionTime: AverageExecutionTimeUseCase,
+    private readonly serviceOrderRepository: ServiceOrderRepository,
   ) {}
 
   @Post()
@@ -61,6 +67,13 @@ export class ServiceOrderController {
     });
   }
 
+  @Get('metrics/average-execution-time')
+  @ApiOperation({ summary: 'Tempo medio de execucao dos servicos (em minutos)' })
+  @ApiResponse({ status: 200 })
+  async getAverageExecutionTime() {
+    return this.averageExecutionTime.execute();
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar ordens de serviço' })
   @ApiQuery({ name: 'status', required: false, enum: ServiceOrderStatus })
@@ -82,5 +95,29 @@ export class ServiceOrderController {
     const so = await this.findServiceOrder.findById(id);
     if (!so) throw new NotFoundException('Service order not found');
     return so;
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Atualizar descrição da ordem de serviço' })
+  @ApiResponse({ status: 200, type: ServiceOrderResponseDto })
+  async update(
+    @Param('id') id: string,
+    @Body('description') description: string,
+  ): Promise<ServiceOrderResponseDto> {
+    const so = await this.serviceOrderRepository.findById(id);
+    if (!so) throw new NotFoundException('Service order not found');
+    so.updateDescription(description);
+    await this.serviceOrderRepository.save(so);
+    return ServiceOrderResponseDto.fromDomain(so);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remover ordem de serviço' })
+  @ApiResponse({ status: 204 })
+  async remove(@Param('id') id: string): Promise<void> {
+    const so = await this.serviceOrderRepository.findById(id);
+    if (!so) throw new NotFoundException('Service order not found');
+    await this.serviceOrderRepository.delete(id);
   }
 }

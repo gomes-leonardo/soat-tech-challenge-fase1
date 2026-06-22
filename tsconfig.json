@@ -18,6 +18,7 @@
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
+    "types": ["node", "jest"],
     "paths": {
       "@domain/*": ["src/domain/*"],
       "@application/*": ["src/application/*"],

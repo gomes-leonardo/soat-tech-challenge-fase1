@@ -118,6 +118,14 @@ export class ServiceOrder extends Entity {
     this.touch();
   }
 
+  updateDescription(description: string): void {
+    if (!description || description.trim().length === 0) {
+      throw DomainException.of('Service order description is required');
+    }
+    this._description = description.trim();
+    this.touch();
+  }
+
   /**
    * Associates an approved budget with this service order.
    * Called when a budget is approved by an admin.

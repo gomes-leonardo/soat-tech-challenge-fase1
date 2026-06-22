@@ -36,6 +36,10 @@ export class PartTypeOrmRepository extends PartRepository {
     return orms.map((orm) => this.toDomainEntity(orm));
   }
 
+  async delete(id: string): Promise<void> {
+    await this.ormRepo.delete(id);
+  }
+
   private toOrmEntity(part: Part): PartOrmEntity {
     const orm = new PartOrmEntity();
     orm.id = part.id;

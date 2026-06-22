@@ -6,4 +6,5 @@ export abstract class ClientRepository {
   abstract findByCpfCnpj(cpfCnpj: string): Promise<Client | null>;
   abstract findAll(): Promise<Client[]>;
   abstract existsByCpfCnpj(cpfCnpj: string): Promise<boolean>;
+  abstract delete(id: string): Promise<void>;
 }

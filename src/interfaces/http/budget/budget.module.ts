@@ -1,0 +1,26 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { BudgetController } from './budget.controller';
+import { CreateBudgetUseCase } from '@application/budget/create-budget.use-case';
+import { ApproveBudgetUseCase } from '@application/budget/approve-budget.use-case';
+import { RefuseBudgetUseCase } from '@application/budget/refuse-budget.use-case';
+import { BudgetRepository } from '@domain/budget/budget-repository.port';
+import { BudgetTypeOrmRepository } from '@infrastructure/database/typeorm/repositories/budget.typeorm-repository';
+import { BudgetOrmEntity } from '@infrastructure/database/typeorm/entities/budget.orm-entity';
+import { ServiceOrderModule } from '@interfaces/http/service-order/service-order.module';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([BudgetOrmEntity]), ServiceOrderModule],
+  controllers: [BudgetController],
+  providers: [
+    CreateBudgetUseCase,
+    ApproveBudgetUseCase,
+    RefuseBudgetUseCase,
+    {
+      provide: BudgetRepository,
+      useClass: BudgetTypeOrmRepository,
+    },
+  ],
+  exports: [BudgetRepository],
+})
+export class BudgetModule {}

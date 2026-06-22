@@ -38,9 +38,7 @@ describe('Vehicle Entity', () => {
 
   describe('invariant: ownerClientId is required', () => {
     it('should throw when ownerClientId is empty', () => {
-      expect(
-        () => new Vehicle({ ...validProps, ownerClientId: '' }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, ownerClientId: '' })).toThrow();
     });
 
     it('should throw when ownerClientId is undefined', () => {
@@ -56,44 +54,32 @@ describe('Vehicle Entity', () => {
 
   describe('invariant: plate is required and valid', () => {
     it('should throw when plate is invalid', () => {
-      expect(
-        () => new Vehicle({ ...validProps, plate: 'INVALID' }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, plate: 'INVALID' })).toThrow();
     });
 
     it('should throw when plate is empty', () => {
-      expect(
-        () => new Vehicle({ ...validProps, plate: '' }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, plate: '' })).toThrow();
     });
   });
 
   describe('invariant: brand and model are required', () => {
     it('should throw when brand is empty', () => {
-      expect(
-        () => new Vehicle({ ...validProps, brand: '' }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, brand: '' })).toThrow();
     });
 
     it('should throw when model is empty', () => {
-      expect(
-        () => new Vehicle({ ...validProps, model: '' }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, model: '' })).toThrow();
     });
   });
 
   describe('invariant: year must be reasonable', () => {
     it('should throw when year is too old (< 1900)', () => {
-      expect(
-        () => new Vehicle({ ...validProps, year: 1800 }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, year: 1800 })).toThrow();
     });
 
     it('should throw when year is in the far future', () => {
       const farFuture = new Date().getFullYear() + 2;
-      expect(
-        () => new Vehicle({ ...validProps, year: farFuture }),
-      ).toThrow();
+      expect(() => new Vehicle({ ...validProps, year: farFuture })).toThrow();
     });
 
     it('should accept current year + 1 (next model year)', () => {
