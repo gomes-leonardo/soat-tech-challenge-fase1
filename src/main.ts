@@ -6,6 +6,10 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // CORS liberado para o MVP (permite o app/cliente consumir a API e a consulta
+  // publica de OS). Em producao, restringir `origin` aos dominios confiaveis.
+  app.enableCors();
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -5,11 +5,13 @@ import {
   Query,
   NotFoundException,
   ForbiddenException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { FindClientUseCase } from '@application/client/find-client.use-case';
 import { FindServiceOrderUseCase } from '@application/service-order/find-service-order.use-case';
 import { ServiceOrderResponseDto } from '@application/service-order/dtos/service-order-response.dto';
+import { RateLimitGuard } from '../guards/rate-limit.guard';
 
 /**
  * Public consult endpoint — no JWT required.
@@ -18,6 +20,7 @@ import { ServiceOrderResponseDto } from '@application/service-order/dtos/service
  */
 @ApiTags('consult')
 @Controller('consult')
+@UseGuards(RateLimitGuard)
 export class ConsultController {
   constructor(
     private readonly findClient: FindClientUseCase,
@@ -31,7 +34,11 @@ export class ConsultController {
       'Endpoint público para o cliente acompanhar o status das suas OS. ' +
       'Requer clientId na URL e CPF/CNPJ como query parameter para verificação de identidade.',
   })
-  @ApiQuery({ name: 'cpf', required: true, description: 'CPF ou CNPJ do cliente (para verificação)' })
+  @ApiQuery({
+    name: 'cpf',
+    required: true,
+    description: 'CPF ou CNPJ do cliente (para verificação)',
+  })
   @ApiResponse({ status: 200, type: [ServiceOrderResponseDto] })
   @ApiResponse({ status: 403, description: 'CPF/CNPJ não corresponde ao cliente' })
   @ApiResponse({ status: 404, description: 'Cliente não encontrado' })

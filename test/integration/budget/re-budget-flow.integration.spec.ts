@@ -1,32 +1,42 @@
 /**
- * GAP D — Integration Test Stub: Re-Budget Flow
+ * Integration Test — Re-Budget Flow
  *
- * This test verifies the complete re-budget flow end-to-end:
- * 1. Create OS → move to EM_EXECUCAO (with approved budget v1)
- * 2. Trigger re-budget: EM_EXECUCAO → AGUARDANDO_APROVACAO
- * 3. Create new budget v2 with different prices
- * 4. Approve budget v2
- * 5. Move back to EM_EXECUCAO
- * 6. Verify: both budget versions exist in DB, OS has correct history
- *
- * // TODO(you): implement this test.
- *
- * This is the most complex integration test because it involves
- * multiple aggregates (ServiceOrder + Budget) and their interaction.
- * It verifies:
- * - Budget versioning works correctly
- * - OS status transitions work with re-budget
- * - Price freezing is maintained per version
- * - History records all transitions including the re-budget
+ * Verifica o fluxo completo de reorcamento ponta a ponta contra um Postgres real:
+ * 1. Cria OS -> EM_EXECUCAO (com orcamento v1 aprovado)
+ * 2. Reorcamento: EM_EXECUCAO -> AGUARDANDO_APROVACAO
+ * 3. Cria orcamento v2 com precos diferentes
+ * 4. Aprova v2, volta para EM_EXECUCAO
+ * 5. Verifica: as duas versoes coexistem, historico correto, preco congelado por versao
  */
 import { DataSource } from 'typeorm';
 import { setupTestDb, teardownTestDb, truncateAllTables } from '../../helpers/test-db.helper';
+import { ClientOrmEntity } from '@infrastructure/database/typeorm/entities/client.orm-entity';
+import { ClientTypeOrmRepository } from '@infrastructure/database/typeorm/repositories/client.typeorm-repository';
+import { PartOrmEntity } from '@infrastructure/database/typeorm/entities/part.orm-entity';
+import { PartTypeOrmRepository } from '@infrastructure/database/typeorm/repositories/part.typeorm-repository';
+import { ServiceOrderOrmEntity } from '@infrastructure/database/typeorm/entities/service-order.orm-entity';
+import { ServiceOrderTypeOrmRepository } from '@infrastructure/database/typeorm/repositories/service-order.typeorm-repository';
+import { BudgetOrmEntity } from '@infrastructure/database/typeorm/entities/budget.orm-entity';
+import { BudgetTypeOrmRepository } from '@infrastructure/database/typeorm/repositories/budget.typeorm-repository';
+import { Client } from '@domain/client/client.entity';
+import { Part } from '@domain/part/part.entity';
+import { ServiceOrder } from '@domain/service-order/service-order.entity';
+import { ServiceOrderStatus } from '@domain/service-order/service-order-status.enum';
+import { Budget } from '@domain/budget/budget.entity';
 
 describe('Re-Budget Flow Integration', () => {
   let dataSource: DataSource;
+  let clientRepo: ClientTypeOrmRepository;
+  let partRepo: PartTypeOrmRepository;
+  let soRepo: ServiceOrderTypeOrmRepository;
+  let budgetRepo: BudgetTypeOrmRepository;
 
   beforeAll(async () => {
     dataSource = await setupTestDb();
+    clientRepo = new ClientTypeOrmRepository(dataSource.getRepository(ClientOrmEntity));
+    partRepo = new PartTypeOrmRepository(dataSource.getRepository(PartOrmEntity));
+    soRepo = new ServiceOrderTypeOrmRepository(dataSource.getRepository(ServiceOrderOrmEntity));
+    budgetRepo = new BudgetTypeOrmRepository(dataSource.getRepository(BudgetOrmEntity));
   }, 60000);
 
   afterAll(async () => {
@@ -37,46 +47,108 @@ describe('Re-Budget Flow Integration', () => {
     await truncateAllTables(dataSource);
   });
 
-  it('should complete the full re-budget flow: execução → new budget → aguardando → execução', async () => {
-    // TODO(you): Arrange
-    // 1. Create a Part (e.g., "Filtro", price 50.0, stock 10)
-    // 2. Create a Client
-    // 3. Create a ServiceOrder for the client
-    // 4. Transition OS: RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO
-    // 5. Create Budget v1 with the part at frozenPrice 50.0
-    // 6. Approve Budget v1
-    // 7. Set budget on OS, transition to EM_EXECUCAO
-    //
-    // Act — Re-budget flow:
-    // 8. Transition OS: EM_EXECUCAO → AGUARDANDO_APROVACAO (re-budget)
-    // 9. Change the catalog part price to 75.0 (simulates price change)
-    // 10. Create Budget v2 with the part at frozenPrice 75.0
-    // 11. Approve Budget v2
-    // 12. Set new budget on OS, transition back to EM_EXECUCAO
-    //
-    // Assert:
-    // - OS is in EM_EXECUCAO
-    // - OS budgetId points to v2
-    // - Budget v1 exists with total = 50.0, version = 1
-    // - Budget v2 exists with total = 75.0, version = 2
-    // - OS history has all transitions including re-budget path
-    // - Catalog part price is 75.0 but budget v1 total is still 50.0 (frozen!)
+  function partLine(part: Part, quantity: number, frozenUnitPrice: number) {
+    return {
+      type: 'PART' as const,
+      referenceId: part.id,
+      description: part.name,
+      quantity,
+      frozenUnitPrice,
+    };
+  }
 
-    throw new Error(
-      'Not implemented: test the full re-budget lifecycle. ' +
-        'This is the most complex integration test — see the comments above.',
-    );
+  it('should complete the full re-budget flow: execução → new budget → aguardando → execução', async () => {
+    // Arrange
+    const part = new Part({ name: 'Filtro', sku: 'FIL-001', unitPrice: 50, stockQuantity: 10 });
+    await partRepo.save(part);
+
+    const client = new Client({ name: 'João da Silva', cpfCnpj: '529.982.247-25' });
+    await clientRepo.save(client);
+
+    const so = new ServiceOrder({ clientId: client.id, description: 'Revisão completa' });
+    so.changeStatus(ServiceOrderStatus.EM_DIAGNOSTICO, 'admin-1');
+    so.changeStatus(ServiceOrderStatus.AGUARDANDO_APROVACAO, 'admin-1');
+    await soRepo.save(so);
+
+    // Budget v1 @ 50.0, aprovado, OS -> EM_EXECUCAO
+    const v1 = new Budget({ serviceOrderId: so.id, lines: [partLine(part, 1, 50)] });
+    v1.approve();
+    await budgetRepo.save(v1);
+    so.setBudget(v1.id);
+    so.changeStatus(ServiceOrderStatus.EM_EXECUCAO, 'admin-1');
+    await soRepo.save(so);
+
+    // Act — Reorcamento: EM_EXECUCAO -> AGUARDANDO_APROVACAO
+    so.clearBudget();
+    so.changeStatus(ServiceOrderStatus.AGUARDANDO_APROVACAO, 'admin-1');
+    await soRepo.save(so);
+
+    // Catalogo muda o preco (nao deve afetar o orcamento v1 ja congelado)
+    part.updatePrice(75);
+    await partRepo.save(part);
+
+    // Budget v2 @ 75.0, aprovado, OS volta para EM_EXECUCAO
+    const existing = await budgetRepo.findLatestByServiceOrderId(so.id);
+    const v2 = Budget.createNewVersion(existing!, [partLine(part, 1, 75)]);
+    v2.approve();
+    await budgetRepo.save(v2);
+    so.setBudget(v2.id);
+    so.changeStatus(ServiceOrderStatus.EM_EXECUCAO, 'admin-1');
+    await soRepo.save(so);
+
+    // Assert
+    const foundSo = await soRepo.findById(so.id);
+    expect(foundSo).not.toBeNull();
+    expect(foundSo!.status).toBe(ServiceOrderStatus.EM_EXECUCAO);
+    expect(foundSo!.budgetId).toBe(v2.id);
+
+    const all = await budgetRepo.findByServiceOrderId(so.id);
+    expect(all).toHaveLength(2);
+    const found1 = all.find((b) => b.version === 1)!;
+    const found2 = all.find((b) => b.version === 2)!;
+    expect(found1.total).toBe(50); // congelado
+    expect(found2.total).toBe(75);
+
+    // Catalogo agora 75, mas v1 permanece congelado em 50
+    const foundPart = await partRepo.findById(part.id);
+    expect(foundPart!.unitPrice).toBe(75);
+    expect(found1.total).toBe(50);
+
+    // Historico inclui o caminho de reorcamento
+    const statuses = foundSo!.statusHistory.entries.map((e) => e.toStatus);
+    expect(statuses).toEqual([
+      ServiceOrderStatus.RECEBIDA,
+      ServiceOrderStatus.EM_DIAGNOSTICO,
+      ServiceOrderStatus.AGUARDANDO_APROVACAO,
+      ServiceOrderStatus.EM_EXECUCAO,
+      ServiceOrderStatus.AGUARDANDO_APROVACAO, // re-budget
+      ServiceOrderStatus.EM_EXECUCAO,
+    ]);
   });
 
   it('should maintain budget v1 total even after catalog price changes', async () => {
-    // TODO(you): This is a focused test for price freezing:
-    // 1. Create budget with part at price 100.0
-    // 2. Change the part catalog price to 200.0
-    // 3. Persist and re-read the budget
-    // 4. Assert budget total still reflects 100.0
+    const part = new Part({ name: 'Pastilha', sku: 'PAS-001', unitPrice: 100, stockQuantity: 5 });
+    await partRepo.save(part);
 
-    throw new Error(
-      'Not implemented: test price freezing persists across save/load cycles.',
-    );
+    const client = new Client({ name: 'Maria', cpfCnpj: '111.444.777-35' });
+    await clientRepo.save(client);
+
+    const so = new ServiceOrder({ clientId: client.id, description: 'Troca de pastilha' });
+    await soRepo.save(so);
+
+    const budget = new Budget({ serviceOrderId: so.id, lines: [partLine(part, 1, 100)] });
+    await budgetRepo.save(budget);
+
+    // Preco do catalogo muda depois
+    part.updatePrice(200);
+    await partRepo.save(part);
+
+    // Persistido e relido, o total do orcamento continua congelado
+    const found = await budgetRepo.findById(budget.id);
+    expect(found).not.toBeNull();
+    expect(found!.total).toBe(100);
+
+    const foundPart = await partRepo.findById(part.id);
+    expect(foundPart!.unitPrice).toBe(200);
   });
 });

@@ -25,9 +25,13 @@
  */
 import { DataSource } from 'typeorm';
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import { AdminOrmEntity } from '@infrastructure/database/typeorm/entities/admin.orm-entity';
 import { ClientOrmEntity } from '@infrastructure/database/typeorm/entities/client.orm-entity';
+import { VehicleOrmEntity } from '@infrastructure/database/typeorm/entities/vehicle.orm-entity';
+import { ServiceOrmEntity } from '@infrastructure/database/typeorm/entities/service.orm-entity';
 import { ServiceOrderOrmEntity } from '@infrastructure/database/typeorm/entities/service-order.orm-entity';
 import { PartOrmEntity } from '@infrastructure/database/typeorm/entities/part.orm-entity';
+import { BudgetOrmEntity } from '@infrastructure/database/typeorm/entities/budget.orm-entity';
 
 let container: StartedTestContainer;
 let dataSource: DataSource;
@@ -52,7 +56,15 @@ export async function setupTestDb(): Promise<DataSource> {
     username: 'test',
     password: 'test',
     database: 'test_db',
-    entities: [ClientOrmEntity, ServiceOrderOrmEntity, PartOrmEntity],
+    entities: [
+      AdminOrmEntity,
+      ClientOrmEntity,
+      VehicleOrmEntity,
+      ServiceOrmEntity,
+      ServiceOrderOrmEntity,
+      PartOrmEntity,
+      BudgetOrmEntity,
+    ],
     synchronize: true,
     logging: false,
   });

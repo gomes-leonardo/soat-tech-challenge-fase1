@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsArray, ValidateNested, IsNumber, Min, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  Min,
+  IsIn,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BudgetLineDto {
@@ -8,25 +16,19 @@ export class BudgetLineDto {
   @IsIn(['SERVICE', 'PART'])
   type!: 'SERVICE' | 'PART';
 
-  @ApiProperty({ example: 'uuid-da-peca-ou-servico' })
+  @ApiProperty({
+    example: 'uuid-da-peca-ou-servico',
+    description:
+      'ID do servico (catalogo) ou da peca (estoque). Preco e descricao sao buscados do catalogo.',
+  })
   @IsString()
   @IsNotEmpty()
   referenceId!: string;
 
-  @ApiProperty({ example: 'Troca de óleo' })
-  @IsString()
-  @IsNotEmpty()
-  description!: string;
-
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ example: 1, description: 'Quantidade do item' })
   @IsNumber()
   @Min(1)
   quantity!: number;
-
-  @ApiProperty({ example: 150.0 })
-  @IsNumber()
-  @Min(0)
-  frozenUnitPrice!: number;
 }
 
 export class CreateBudgetDto {
@@ -35,7 +37,12 @@ export class CreateBudgetDto {
   @IsNotEmpty()
   serviceOrderId!: string;
 
-  @ApiProperty({ type: [BudgetLineDto] })
+  @ApiProperty({
+    type: [BudgetLineDto],
+    description:
+      'Itens do orcamento. O preco unitario e a descricao sao resolvidos ' +
+      'automaticamente a partir do catalogo (Service/Part) e congelados.',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => BudgetLineDto)
