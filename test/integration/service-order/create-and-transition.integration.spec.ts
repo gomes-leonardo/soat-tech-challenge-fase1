@@ -4,6 +4,7 @@
  * This test demonstrates persisting a ServiceOrder through its status transitions
  * and verifying that history rows are persisted in the JSONB column.
  */
+import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { setupTestDb, teardownTestDb, truncateAllTables } from '../../helpers/test-db.helper';
 import { ServiceOrderOrmEntity } from '@infrastructure/database/typeorm/entities/service-order.orm-entity';
@@ -14,6 +15,10 @@ import { ServiceOrderStatus } from '@domain/service-order/service-order-status.e
 describe('ServiceOrder Create & Transition Integration', () => {
   let dataSource: DataSource;
   let repository: ServiceOrderTypeOrmRepository;
+
+  // Use real UUIDs because the DB column type is uuid
+  const CLIENT_A = randomUUID();
+  const CLIENT_B = randomUUID();
 
   beforeAll(async () => {
     dataSource = await setupTestDb();
@@ -31,7 +36,7 @@ describe('ServiceOrder Create & Transition Integration', () => {
 
   it('should persist a new service order with initial status', async () => {
     const so = new ServiceOrder({
-      clientId: 'client-123',
+      clientId: CLIENT_A,
       description: 'Troca de óleo',
     });
 
@@ -45,14 +50,15 @@ describe('ServiceOrder Create & Transition Integration', () => {
 
   it('should persist status transitions and history', async () => {
     const so = new ServiceOrder({
-      clientId: 'client-123',
+      clientId: CLIENT_A,
       description: 'Revisão completa',
     });
 
     // Transition through happy path
     so.changeStatus(ServiceOrderStatus.EM_DIAGNOSTICO, 'admin-1');
     so.changeStatus(ServiceOrderStatus.AGUARDANDO_APROVACAO, 'admin-1');
-    so.setBudget('budget-1');
+    const fakeBudgetId = randomUUID();
+    so.setBudget(fakeBudgetId);
     so.changeStatus(ServiceOrderStatus.EM_EXECUCAO, 'admin-1');
 
     await repository.save(so);
@@ -60,7 +66,7 @@ describe('ServiceOrder Create & Transition Integration', () => {
 
     expect(found).not.toBeNull();
     expect(found!.status).toBe(ServiceOrderStatus.EM_EXECUCAO);
-    expect(found!.budgetId).toBe('budget-1');
+    expect(found!.budgetId).toBe(fakeBudgetId);
 
     // 1 initial + 3 transitions = 4 history entries
     expect(found!.statusHistory.length).toBe(4);
@@ -74,15 +80,15 @@ describe('ServiceOrder Create & Transition Integration', () => {
 
   it('should find service orders by client id', async () => {
     const so1 = new ServiceOrder({
-      clientId: 'client-A',
+      clientId: CLIENT_A,
       description: 'OS 1',
     });
     const so2 = new ServiceOrder({
-      clientId: 'client-A',
+      clientId: CLIENT_A,
       description: 'OS 2',
     });
     const so3 = new ServiceOrder({
-      clientId: 'client-B',
+      clientId: CLIENT_B,
       description: 'OS 3',
     });
 
@@ -90,8 +96,8 @@ describe('ServiceOrder Create & Transition Integration', () => {
     await repository.save(so2);
     await repository.save(so3);
 
-    const clientAOrders = await repository.findByClientId('client-A');
-    const clientBOrders = await repository.findByClientId('client-B');
+    const clientAOrders = await repository.findByClientId(CLIENT_A);
+    const clientBOrders = await repository.findByClientId(CLIENT_B);
 
     expect(clientAOrders).toHaveLength(2);
     expect(clientBOrders).toHaveLength(1);

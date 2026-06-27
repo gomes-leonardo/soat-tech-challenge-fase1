@@ -2,7 +2,12 @@
 
 Sistema de gerenciamento de ordens de servico para oficina mecanica — SOAT Tech Challenge Fase 1 (POS TECH FIAP).
 
-**Autor:** Leonardo Rodrigues Gomes e Vinicius Takedi
+## Integrantes
+
+| Nome | RM |
+| --- | --- |
+| Vinicius Taked Souza Brunelli | rm374460 |
+| Leonardo Rodrigues Gomes | rm374461 |
 
 ## Arquitetura
 
@@ -94,14 +99,16 @@ Todos os endpoints (exceto `/auth` e `/consult`) requerem autenticacao JWT via h
 
 ### Ordens de Servico
 
-| Metodo | Rota                         | Descricao                                      |
-| ------ | ---------------------------- | ---------------------------------------------- |
-| POST   | `/service-orders`            | Criar OS                                       |
-| GET    | `/service-orders`            | Listar (filtro por `?status=` ou `?clientId=`) |
-| GET    | `/service-orders/:id`        | Buscar por ID                                  |
-| PATCH  | `/service-orders/:id/status` | Alterar status                                 |
-| PUT    | `/service-orders/:id`        | Atualizar descricao                            |
-| DELETE | `/service-orders/:id`        | Remover OS                                     |
+| Metodo | Rota                                             | Descricao                                      |
+| ------ | ------------------------------------------------ | ---------------------------------------------- |
+| POST   | `/service-orders`                                | Criar OS                                       |
+| GET    | `/service-orders`                                | Listar (filtro por `?status=` ou `?clientId=`) |
+| GET    | `/service-orders/:id`                            | Buscar por ID                                  |
+| PATCH  | `/service-orders/:id/status`                     | Alterar status                                 |
+| PUT    | `/service-orders/:id`                            | Atualizar descricao                            |
+| DELETE | `/service-orders/:id`                            | Remover OS                                     |
+| GET    | `/service-orders/metrics/average-execution-time` | Tempo medio de execucao                        |
+| GET    | `/service-orders/metrics/operational-report`     | Relatorio operacional                          |
 
 ### Orcamentos
 
@@ -122,6 +129,16 @@ Todos os endpoints (exceto `/auth` e `/consult`) requerem autenticacao JWT via h
 
 > Protegido por **rate limiting** (fixed-window, 20 req/min por `clientId`) para mitigar abuso/forca-bruta no par `clientId` + CPF/CNPJ. Excedido o limite, responde `429 Too Many Requests` com header `Retry-After`.
 
+### Relatorio Operacional
+
+O endpoint `GET /service-orders/metrics/operational-report` retorna:
+
+- Quantidade de OS por status (RECEBIDA, EM_DIAGNOSTICO, etc.)
+- Total de ordens de servico
+- Pecas com estoque baixo (threshold <= 5 unidades)
+- Tempo medio de execucao dos servicos finalizados (em minutos)
+- Total de servicos finalizados contabilizados
+
 ## Maquina de Status da OS
 
 ```
@@ -133,13 +150,13 @@ Excecoes:
   Aguardando aprovacao -> Encerrada sem execucao (recusa do cliente)
 ```
 
-**Regras de negocio (automacoes):**
+**Regras de negocio:**
 
 - A transicao para `EM_EXECUCAO` so e permitida se a OS tiver um orcamento aprovado (`budgetId` setado).
-- **Orcamento automatico:** ao criar um orcamento, o sistema busca preco e descricao do catalogo (`Service.basePrice` / `Part.unitPrice`) pelo `referenceId` e **congela** esses valores. O cliente da API informa apenas `type`, `referenceId` e `quantity` — nunca o preco.
-- **Status automatico:** criar um orcamento move a OS para `AGUARDANDO_APROVACAO` (e, no re-orcamento a partir de `EM_EXECUCAO`, limpa o vinculo anterior e retorna a OS para `AGUARDANDO_APROVACAO`). Recusar um orcamento encerra a OS (`ENCERRADA_SEM_EXECUCAO`).
-- **Baixa de estoque na aprovacao:** ao aprovar o orcamento, o sistema verifica a disponibilidade de todas as pecas e da baixa no estoque (reserva). Se faltar estoque, a aprovacao e bloqueada (estoque nunca fica negativo) ate que seja registrada entrada.
-- **Price freezing:** o valor de servicos e pecas e congelado no orcamento, preservado mesmo que o catalogo mude depois.
+- A aprovacao do orcamento vincula o `budgetId` na OS, habilitando a transicao — mas nao a faz automaticamente. O mecanico decide quando iniciar a execucao.
+- O congelamento de preco (`frozenUnitPrice`) garante que o valor acordado com o cliente e preservado mesmo que o catalogo mude depois.
+- A baixa de estoque e feita manualmente durante a execucao (`PATCH /parts/:id/stock`), quando a peca e efetivamente utilizada — nao na aprovacao do orcamento.
+- Re-orcamento: a partir de `EM_EXECUCAO`, o sistema permite voltar para `AGUARDANDO_APROVACAO` com um novo orcamento versionado.
 
 ## Como executar
 
@@ -155,8 +172,6 @@ docker-compose up -d
 ```
 
 A API estara disponivel em `http://localhost:3000` e o Swagger em `http://localhost:3000/api-docs`.
-
-> **Schema:** o container roda com `NODE_ENV=production` e executa as **migrations automaticamente no boot** (`migrationsRun`), criando todo o schema na primeira subida. Nenhum passo manual de migration e necessario. Em desenvolvimento local (`NODE_ENV=development`) o TypeORM usa `synchronize` para agilidade.
 
 ### Desenvolvimento local
 
@@ -205,7 +220,7 @@ npm test
 npm run test:cov
 ```
 
-**Status atual:** 256 testes unitarios passando, cobrindo entidades de dominio, value objects e todos os use cases. A cobertura dos dominios criticos (`src/domain` + `src/application`) e validada por `coverageThreshold` (minimo 80%) no Jest — atualmente acima de 90% em todas as metricas. Os testes de integracao (testcontainers, exigem Docker) cobrem persistencia, fluxo de re-orcamento, transicoes de status e a consulta publica.
+271 testes passando (259 unitarios + 12 integracao), cobrindo entidades de dominio, value objects, use cases, guards e fluxos completos de persistencia. Cobertura acima de 80% nos dominios criticos (`src/domain` + `src/application`).
 
 ## Seguranca
 
@@ -219,25 +234,8 @@ Medidas implementadas:
 - DomainExceptionFilter (sem vazamento de stack traces)
 - Dockerfile com usuario nao-root
 - Variaveis de ambiente via ConfigService
+- Rate limiting no endpoint publico de consulta
 
 ## Documentacao da API
 
 Swagger UI disponivel em `/api-docs` com a aplicacao rodando. Todas as rotas documentadas com exemplos de request/response.
-
-## Checklist de entregaveis
-
-- [x] Event Storming + documentacao DDD (Miro)
-- [x] APIs RESTful documentadas via Swagger
-- [x] CRUD completo: Clientes, Veiculos, Pecas, Servicos, OS, Orcamentos
-- [x] Autenticacao JWT nas APIs de admin
-- [x] Validacao de CPF/CNPJ + placa (formatos antigo e Mercosul)
-- [x] Endpoint publico de consulta de OS por cliente
-- [x] Maquina de status da OS com transicoes validadas + transicoes automaticas (criar/recusar orcamento)
-- [x] Orcamento gerado automaticamente do catalogo, com congelamento de preco e re-orcamento
-- [x] Baixa de estoque na aprovacao do orcamento (estoque nunca negativo)
-- [x] Rate limiting no endpoint publico de consulta
-- [x] Testes unitarios (256 passando) + integracao + cobertura >=80% nos dominios criticos (coverageThreshold)
-- [x] Dockerfile multi-stage + docker-compose com migrations automaticas no boot
-- [x] README com instrucoes de execucao + justificativa do banco
-- [x] Relatorio de seguranca/vulnerabilidades (SECURITY.md)
-- [ ] Repositorio privado com acesso ao usuario `soat-architecture`
